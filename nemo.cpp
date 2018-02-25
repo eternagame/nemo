@@ -746,6 +746,7 @@ void init_globals( void )
     time_t now = time( NULL );
     srand48( now ^ 0x5A5A5A5A );
 
+    int len = strlen( start );
     pt = make_pair_table( target );
     mt = make_mismatch_table( pt );
     jct = scan_junctions( pt );
@@ -760,7 +761,7 @@ void init_globals( void )
 
     if( verbosity > 2 ) {
         int i;
-        for( i = 0; i < strlen( target ); i++ ) {
+        for( i = 0; i < len; i++ ) {
             printf( "%c", pt[1+i]? ( pt[1+i] > 1+i? (mt[1+i]? '[' : '(') : (mt[1+i]? ']' : ')' ) ) : mt[1+i]? '*' : '.' );
         }
         printf("\n");
@@ -775,9 +776,9 @@ int main( int argc, char** argv )
 
     init_globals();
 
+    int len = strlen( start );
     char* copy = strdup( start );
     char* position = strdup( start );
-    int len = strlen( start );
     char* secstr = strdup( target );
     secstr[0] = '\0';
     
