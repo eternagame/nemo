@@ -15,3 +15,7 @@ Sequentially run full test on Eterna100:
 
 $ cat list.e100 | xargs -L 1 ./nemo -E -v
 
+Heuristics and strategies used in the application are described at
+https://docs.google.com/document/d/13_rwbrBc9H5ldeLISTPw9jPJ1anvTAnkR5DhAyBOdN4/edit
+
+
