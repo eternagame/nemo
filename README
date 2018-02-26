@@ -1,4 +1,4 @@
-Create a 'nemo' folder inside a ViennaRNA 2.x source code tree
+Create a 'nemo' folder inside a ViennaRNA 2.1.x source code tree
 
 ~/ViennaRNA-2.1.8$ mkdir nemo
 
