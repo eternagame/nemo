@@ -544,14 +544,14 @@ bool play_move( char* position, const char* bases, int z = -1 )
                         }
                     }
                 } else { // a mismatch in a junction or external loop
-                    w[0]=47; w[1]=1; w[2]=1; w[3]=1;
+                    w[0]=97; w[1]=1; w[2]=1; w[3]=1;
                     if( down == 1+l ) {
                         if( (l < 1 || pt[1+l-1]==0) && position[l+1] == 'G' && position[pt[1+l+1]-1] == 'C' ) {
-                            w[3]=24; // increase chance of C boost
+                            w[3]=48; // increase chance of C boost
                         }
                     } else {
                         if( (l >= len-1 || pt[1+l+1]==0) && position[l-1] == 'G' && position[pt[1+l-1]-1] == 'C' ) {
-                            w[2]=24; // increase chance of G boost
+                            w[2]=48; // increase chance of G boost
                         }
                     }
                 }
@@ -622,9 +622,11 @@ double nested( char* position, int level )
                 if( !play_move( playout, "AUGC", z ) ) continue;
                 v = sample( playout );
                 #pragma omp critical(max_update)
-                if( v > max ) {
-                    max = v;
-                    strcpy( best_local, playout );
+                {
+                    if( v > max ) {
+                        max = v;
+                        strcpy( best_local, playout );
+                    }
                 }
                 free( playout );
             }
@@ -939,7 +941,7 @@ int main( int argc, char** argv )
 
         free( pa );
 
-        if( verbosity > 1 ) printf( "C: %s\nN: %s\n", position, copy );
+        if( verbosity > 2 ) printf( "C: %s\nN: %s\n", position, copy );
         
         // if we seem to be chasing our own tail, reset completely
         if( strcmp( last_copy, copy ) == 0 ) {
