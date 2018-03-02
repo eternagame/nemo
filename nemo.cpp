@@ -375,16 +375,12 @@ bool play_move( char* position, const char* bases, int z = -1 )
             if( l < len-1 && mt[1+l+1] && pt[1+l+1] && pt[1+l+1] < len && mt[pt[1+l+1]+1] == 1+l) {
                 // ok, looks like adjacent stacks, but we need to eliminate the possibility
                 // that it could be a 0-N bulge
-                int right = pt[1+l+1]+1;
-                while( right <= len && pt[right]==0 ) right++;
-                if( right != pt[1+l] ) {
+                if( jct[1+l] || jct[pt[1+l]] ) {
                     w[0] -= 6; w[1] -= 6; w[2] += 6; w[3] += 6;
                 }
             }
             if( l > 0 && mt[1+l-1] && pt[1+l-1] && pt[1+l-1] > 1 && mt[pt[1+l-1]-1] == 1+l) {
-                int left = pt[1+l-1]-1;
-                while( left >= 1 && pt[left]==0 ) left--;
-                if( left != pt[1+l] ) {
+                if( jct[1+l] || jct[pt[1+l]] ) {
                     w[0] += 6; w[1] += 6; w[2] -= 6; w[3] -= 6;
                 }
             }
