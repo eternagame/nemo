@@ -45,10 +45,11 @@ int    verbosity = 0;
 int    iter = 2500;
 char*  target = NULL;
 char*  start = NULL;
-short* pt = NULL;
-short* mt = NULL;
-int*   jct = NULL;
-int*   smap = NULL;
+short* pt = NULL;       // Pair Table
+short* mt = NULL;       // Mismatch Table
+int*   lt = NULL;       // Loop Table
+int*   jct = NULL;      // Junction Table
+int*   smap = NULL;     // Strength Map
 int    npairs;
 int*   shuffle = NULL;
 bool   found = false;
@@ -103,9 +104,9 @@ short* make_mismatch_table( short* pt )
     return mt;
 }
 
-// Initializes a helper array marking the closing pairs in junctions
+// Initialize helper arrays marking the closing pairs in various loops
 //
-int* scan_junctions( short* pt )
+int* scan_loops( short* pt )
 {
     int len = pt[0];
     int* map = (int*)calloc( 1+len, sizeof(int) );
@@ -119,10 +120,9 @@ int* scan_junctions( short* pt )
             map[j] = mark;
             int k = j;
             do {
-                if( ++k > len ) k = 1;
-                while( pt[k]==0 ) {
+                do {
                     if( ++k > len ) k = 1;
-                }
+                } while( pt[k]==0 );
                 k = pt[k];
                 map[k] = mark;
             } while( k != j );
@@ -131,8 +131,19 @@ int* scan_junctions( short* pt )
     }
 
     map[0] = mark;
+    return map;
+}
+
+int* scan_junctions( short* pt, int* lt )
+{
+    int len = pt[0];
+    int* map = (int*)calloc( 1+len, sizeof(int) );
+    memmove( map, lt, (1+len)*sizeof(int) );
+
+    int mark = lt[0];
 
     while( --mark ) {
+        int j;
         int count = 0;
         for( j = 1; j <= len; j++ ) if( map[j] == mark ) count++;
         if( count <= 2 ) {
@@ -383,6 +394,26 @@ bool play_move( char* position, const char* bases, int z = -1 )
                 if( jct[1+l] || jct[pt[1+l]] ) {
                     w[0] += 6; w[1] += 6; w[2] -= 6; w[3] -= 6;
                 }
+            }
+
+            // Tuning for triloops
+            // Only GC/CG closing pairs work if the supporting pair also is GC/CG
+            int d, j, k;
+            if( pt[1+l] > (1+l) ) {
+                d = pt[1+l] - (1+l);
+                j = 1+l + 1;
+                k = 1+l - 1;
+            } else {
+                d = (1+l) - pt[1+l];
+                j = pt[1+l] + 1;
+                k = pt[1+l] - 1;
+            }
+            if( d == 4 && pair_map( position[k-1], position[pt[1+k-1]-1] ) == 3 ) {
+                w[2] = 0; w[3] = 0; w[4] = 0; w[5] = 0;
+            }
+            if( d == 6 && pt[j] && pt[j]-j == 4 && !undecided( position[j-1] )
+                && pair_map( position[j-1], position[pt[j]-1] ) != 3 ) {
+                w[0] = 0; w[1] = 0;
             }
 
             if( !test_move( position, l, 'C' ) ) w[0] = 0;
@@ -747,7 +778,8 @@ void init_globals( void )
     int len = strlen( start );
     pt = make_pair_table( target );
     mt = make_mismatch_table( pt );
-    jct = scan_junctions( pt );
+    lt = scan_loops( pt );
+    jct = scan_junctions( pt, lt );
     smap = make_strength_map( pt, mt );
 
     char* p;
@@ -758,9 +790,12 @@ void init_globals( void )
     for( k = 0; k < len; k++ ) shuffle[k] = k;
 
     if( verbosity > 2 ) {
-        int i;
-        for( i = 0; i < len; i++ ) {
-            printf( "%c", pt[1+i]? ( pt[1+i] > 1+i? (mt[1+i]? '[' : '(') : (mt[1+i]? ']' : ')' ) ) : mt[1+i]? '*' : '.' );
+        for( k = 1; k <= len; k++ ) {
+            printf( "%c", pt[k]? ( pt[k] > k? (mt[k]? '[' : '(') : (mt[k]? ']' : ')' ) ) : mt[k]? '*' : '.' );
+        }
+        printf("\n");
+        for( k = 1; k <= len; k++ ) {
+            printf( "%c", lt[k]? (jct[k]? 'Y' : '|') : '.' );
         }
         printf("\n");
         fflush( stdout );
@@ -820,33 +855,42 @@ int main( int argc, char** argv )
         // try again with the original starting point, we build a new starting point based
         // on what seems to have worked and what didn't (misfolds)
 
-        // let's get a pair map of the misfolded structure
-        short* pa = make_pair_table( secstr );
         int i, j, k, c;
 
-        // first, expand the pa[] array with all closing pairs of misfolded junctions
-        for( j = 1; j < jct[0]; j++ ) {
-            for( i = 0, c = 0; i < len; i++ ) {
-                if( jct[1+i] == j && pt[1+i] != pa[1+i] ) c++;
-            }
-            if( c == 1 ) {
-                for( i = 0; i < len; i++ ) {
-                    if( jct[1+i] == j ) {
-                        if( pt[1+i] != pa[1+i] ) {
-                            k = i - 1;
-                            if( pt[1+k] && pt[1+k] == pa[1+k] ) {
-                                pa[1+k] = 0;
-                                pa[pt[1+k]] = 0;
-                            }
-                        } else {
-                            pa[1+i] = 0;
-                            pa[pt[1+i]] = 0;
-                        }
+        // let's get a pair map of the misfolded structure
+        short* pa = make_pair_table( secstr );
+        // 
+        short* ma = make_mismatch_table( pa );
+        // 
+        bool* retry = (bool*)calloc( 1+len, sizeof(bool) );
+        for( j = 1; j <= len; j++ ) retry[j] = (pt[j] != pa[j]);
+
+        for( j = 1; j <= len; j++ ) {
+            if( retry[j] && lt[j] ) {
+                // walk the loop and mark all strategic spots
+                k = j;
+                do {
+                    do {
+                        if( ++k > len ) k = 1;
+                        if( pt[k] || mt[k] ) retry[k] = true;
+                    } while( pt[k]==0 );
+                    k = pt[k];
+                    retry[k] = true;
+                } while( k != j );
+
+                //
+                if( j > 1 && pa[j] == 0 && pa[pt[j]] == 0 ) {
+                    k = j - 1;
+                    if( pt[k] && !retry[k] ) {
+                        retry[k] = true;
+                        retry[pt[k]] = true;
                     }
                 }
             }
         }
         
+        // we're ready
+
         do {
 
             strcpy( copy, position );
@@ -859,17 +903,23 @@ int main( int argc, char** argv )
                 shuffle[k] ^= shuffle[r];
                 shuffle[r] ^= shuffle[k];
                 shuffle[k] ^= shuffle[r];
+                // full points for the correct answer
+                // bonus point for finding the answer without writing anything down
+                // bonus point if the candidate declares "this is evil / bad style"
+                // bonus point if the candidate can cite a context where this trick
+                //             might be justified or useful
             }
                     
             for( k = 0, c = 0; k < len; k++ ) {
                 i = shuffle[k];
 
-                // not a misfolded spot, let's keep it
-                if( pt[1+i] == pa[1+i] ) continue;
+                // not a misfolded (or otherwise interesting) spot? let's keep it
+                if( !retry[1+i] ) continue;
 
                 // we don't want to reset and retry all misfolded bases and pairs
                 // so we use probabilities, first 1/1, then 1/2, 1/3 and so on
-                // this guarantess that we will reset at least one, and maybe a few more
+                // this guarantess that we will reset at least one base or pair,
+                // and maybe a few more.
                 if( int_urn(0,c++)!=0 ) continue;
 
                 // FIXME: Ad hoc rules, based on personal experience.
@@ -935,6 +985,8 @@ int main( int argc, char** argv )
 
         } while( strspn( copy, "AUGC" ) == strlen( copy ) );
 
+        free( retry );
+        free( ma );
         free( pa );
 
         if( verbosity > 2 ) printf( "C: %s\nN: %s\n", position, copy );
@@ -954,6 +1006,7 @@ int main( int argc, char** argv )
     free( shuffle );
     free( smap );
     free( jct );
+    free( lt );
     free( mt );
     free( pt );
 
