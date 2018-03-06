@@ -859,36 +859,25 @@ int main( int argc, char** argv )
 
         // let's get a pair map of the misfolded structure
         short* pa = make_pair_table( secstr );
-        // 
-        short* ma = make_mismatch_table( pa );
+        // not used (yet)
+        // short* ma = make_mismatch_table( pa );
         // 
         bool* retry = (bool*)calloc( 1+len, sizeof(bool) );
         for( j = 1; j <= len; j++ ) retry[j] = (pt[j] != pa[j]);
 
         for( j = 1; j <= len; j++ ) {
-            if( retry[j] && lt[j] ) {
-                // walk the loop and mark all strategic spots
-                k = j;
-                do {
-                    do {
-                        if( ++k > len ) k = 1;
-                        if( pt[k] || mt[k] ) retry[k] = true;
-                    } while( pt[k]==0 );
-                    k = pt[k];
+            // add mismatches of the misfolded bases
+            if( !retry[j] && mt[j] && retry[mt[j]] ) retry[j] = true;
+            // add "supporting" pairs of misfolded ("opening up") closing pairs
+            if( j > 1 && retry[j] && lt[j] && pa[j] == 0 && pa[pt[j]] == 0 ) {
+                k = j - 1;
+                if( pt[k] && !retry[k] ) {
                     retry[k] = true;
-                } while( k != j );
-
-                //
-                if( j > 1 && pa[j] == 0 && pa[pt[j]] == 0 ) {
-                    k = j - 1;
-                    if( pt[k] && !retry[k] ) {
-                        retry[k] = true;
-                        retry[pt[k]] = true;
-                    }
+                    retry[pt[k]] = true;
                 }
             }
         }
-        
+
         // we're ready
 
         do {
@@ -986,7 +975,7 @@ int main( int argc, char** argv )
         } while( strspn( copy, "AUGC" ) == strlen( copy ) );
 
         free( retry );
-        free( ma );
+        // free( ma );
         free( pa );
 
         if( verbosity > 2 ) printf( "C: %s\nN: %s\n", position, copy );
