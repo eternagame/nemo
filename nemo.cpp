@@ -45,6 +45,7 @@ int    verbosity = 0;
 int    iter = 2500;
 char*  target = NULL;
 char*  start = NULL;
+char*  seed = NULL;
 short* pt = NULL;       // Pair Table
 short* mt = NULL;       // Mismatch Table
 int*   lt = NULL;       // Loop Table
@@ -633,6 +634,10 @@ double sample( char* position )
 
 double nested( char* position, int level )
 {
+    if( strspn( position, "AUGC" ) == strlen( position ) ) {
+        return normal_score( position );
+    }
+
     double best = WORST_SCORE;
     char* best_playout = strdup( position );
     char* best_local = strdup( position );
@@ -756,6 +761,17 @@ bool parse_arguments( int argc, char** argv )
                 printf( "Invalid character '%c' in sequence.\n",  start[strspn( start, "AUGCN" )] );
                 return false;
             }
+            if( argc > 3 ) {
+                seed = strdup( argv[3] );
+                if( strlen(seed) != strlen(target) ) {
+                    printf( "Seed sequence length doesn't match target structure.\n" );
+                    return false;
+                }
+                if( strspn( seed, "AUGC" ) != strlen(start) ) {
+                    printf( "Invalid character '%c' in seed sequence.\n",  seed[strspn( seed, "AUGC" )] );
+                    return false;
+                }
+            }
         } else {
             start = strdup( argv[1] );
             memset( start, 'N', strlen( target ) );
@@ -827,6 +843,8 @@ int main( int argc, char** argv )
     int bpd;
     int n_iter = iter;
 
+    if( seed ) strcpy( copy, seed );
+
     for( ; iter; iter-- ) {
         strcpy( position, copy );
         // half the time, use the best boosts we know of during playouts
@@ -859,22 +877,41 @@ int main( int argc, char** argv )
 
         // let's get a pair map of the misfolded structure
         short* pa = make_pair_table( secstr );
-        // not used (yet)
-        // short* ma = make_mismatch_table( pa );
-        // 
+
         bool* retry = (bool*)calloc( 1+len, sizeof(bool) );
         for( j = 1; j <= len; j++ ) retry[j] = (pt[j] != pa[j]);
 
         for( j = 1; j <= len; j++ ) {
             // add mismatches of the misfolded bases
             if( !retry[j] && mt[j] && retry[mt[j]] ) retry[j] = true;
-            // add "supporting" pairs of misfolded ("opening up") closing pairs
-            if( j > 1 && retry[j] && lt[j] && pa[j] == 0 && pa[pt[j]] == 0 ) {
-                k = j - 1;
-                if( pt[k] && !retry[k] ) {
+        }
+
+        short* ma = make_mismatch_table( pa );
+        int*   la = scan_loops( pa );
+
+        for( j = 1; j < la[0]; j++ ) {
+            for( i = 1; i <= len && la[i] != j; i++ ) ;
+            bool has_opened_pair = false;
+            bool closing_good = true;
+            k = i;
+            do {
+                do {
+                    if( ++k > len ) k = 1;
+                    if( pa[k]==0 && pt[k] ) has_opened_pair = true;
+                } while( pa[k]==0 );
+                if( pa[k] != pt[k] ) closing_good = false;
+                k = pa[k];
+            } while( k != i && closing_good );
+
+            if( closing_good && has_opened_pair ) {
+                do {
+                    do {
+                        if( ++k > len ) k = 1;
+                        if( pa[k] || ma[k] ) retry[k] = true;
+                    } while( pa[k]==0 );
+                    k = pa[k];
                     retry[k] = true;
-                    retry[pt[k]] = true;
-                }
+                } while( k != i );
             }
         }
 
