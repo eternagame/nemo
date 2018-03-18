@@ -1012,7 +1012,8 @@ int main( int argc, char** argv )
         } while( strspn( copy, "AUGC" ) == strlen( copy ) );
 
         free( retry );
-        // free( ma );
+        free( la );
+        free( ma );
         free( pa );
 
         if( verbosity > 2 ) printf( "C: %s\nN: %s\n", position, copy );
