@@ -806,10 +806,11 @@ void init_globals( void )
     for( k = 0; k < len; k++ ) shuffle[k] = k;
 
     if( verbosity > 2 ) {
+        printf( "   " );
         for( k = 1; k <= len; k++ ) {
             printf( "%c", pt[k]? ( pt[k] > k? (mt[k]? '[' : '(') : (mt[k]? ']' : ')' ) ) : mt[k]? '*' : '.' );
         }
-        printf("\n");
+        printf("\n   ");
         for( k = 1; k <= len; k++ ) {
             printf( "%c", lt[k]? (jct[k]? 'Y' : '|') : '.' );
         }
@@ -1011,13 +1012,20 @@ int main( int argc, char** argv )
 
         } while( strspn( copy, "AUGC" ) == strlen( copy ) );
 
+        if( verbosity > 2 ) {
+            printf( "C: %s\n", position );
+            printf( "S: " );
+            for( k = 1; k <= len; k++ ) printf( "%c", retry[k] ? 'X' : '.' );
+            printf( "\n" );
+            printf( "N: %s\n", copy );
+            fflush( stdout );
+        }
+
         free( retry );
         free( la );
         free( ma );
         free( pa );
 
-        if( verbosity > 2 ) printf( "C: %s\nN: %s\n", position, copy );
-        
         // if we seem to be chasing our own tail, reset completely
         if( strcmp( last_copy, copy ) == 0 ) {
             if( ++stuck > 10 ) {
