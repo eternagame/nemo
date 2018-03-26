@@ -657,9 +657,11 @@ double nested( char* position, int level )
                 double v = sample( playout );
                 if (verbosity > 3) printf("---- %s %f\n", playout, v);
                 #pragma omp critical(max_update)
-                if( v > max ) {
-                    max = v;
-                    strcpy( best_local, playout );
+                {
+                    if( v > max ) {
+                        max = v;
+                        strcpy( best_local, playout );
+                    }
                 }
                 free( playout );
             }
