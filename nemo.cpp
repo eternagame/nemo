@@ -42,6 +42,7 @@ extern "C" {
 // FIXME: globals are ugly, refactor whenever possible
 //
 int    verbosity = 0;
+bool   standard_nmcs = false;
 int    iter = 2500;
 char*  target = NULL;
 char*  start = NULL;
@@ -644,21 +645,21 @@ double nested( char* position, int level )
 
     while( strspn( position, "AUGC" ) != strlen( position ) ) {
         int l = strspn( position, "AUGC" );
-        double v, max = WORST_SCORE;
+        double max = WORST_SCORE;
         int z;
         int zm = pt[l+1]==0? 4 : 6;
         if( level == 1 ) {
+            if (verbosity > 3) printf("==== %s\n", position);
             #pragma omp parallel for schedule(dynamic)
             for( z = 0; z < zm; z++ ) {
                 char* playout = strdup( position );
                 if( !play_move( playout, "AUGC", z ) ) continue;
-                v = sample( playout );
+                double v = sample( playout );
+                if (verbosity > 3) printf("---- %s %f\n", playout, v);
                 #pragma omp critical(max_update)
-                {
-                    if( v > max ) {
-                        max = v;
-                        strcpy( best_local, playout );
-                    }
+                if( v > max ) {
+                    max = v;
+                    strcpy( best_local, playout );
                 }
                 free( playout );
             }
@@ -666,7 +667,7 @@ double nested( char* position, int level )
             for( z = 0; z < zm; z++ ) {
                 char* playout = strdup( position );
                 if( !play_move( playout, "AUGC", z ) ) continue;
-                v = nested( playout, level - 1 );
+                double v = nested( playout, level - 1 );
                 if( v > max ) {
                     max = v;
                     strcpy( best_local, playout );
@@ -674,8 +675,8 @@ double nested( char* position, int level )
                 free( playout );
             }
         }
-        
-        if( max > best ) {
+
+        if( standard_nmcs || (max > best) ) {
             best = max;
             strcpy( best_playout, best_local );
         }
@@ -727,6 +728,10 @@ bool parse_arguments( int argc, char** argv )
     while( argc > 1 && argv[1][0] == '-' ) {
         if( strcmp( argv[1], "-E" )==0 ) {
             config_eterna();
+            argc--;
+            argv++;
+        } else if( strcmp( argv[1], "-S" )==0 ) {
+            standard_nmcs = true;
             argc--;
             argv++;
         } else if( strcmp( argv[1], "-i" )==0 ) {
