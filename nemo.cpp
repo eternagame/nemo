@@ -307,6 +307,7 @@ double quick_score( char* position )
     return score;
 }
 
+#define USE_DDG 1
     
 double normal_score( char* position )
 {
@@ -314,7 +315,9 @@ double normal_score( char* position )
     secstr[0] = '\0';
     double e = fold( position, secstr );
     int bpd = bp_distance( target, secstr );
+#if USE_DDG
     double es = energy_of_structure( position, target, 0 );
+#endif
     free( secstr );
     if( bpd == 0 ) {
         found = true;
@@ -322,8 +325,10 @@ double normal_score( char* position )
         return 1.0;
     }
     double score = (npairs==0 ? 1.0 / (1.0 + bpd) : 1.0 - (0.5 * bpd) / npairs);
+#if USE_DDG
     double e_factor = 1.01 + es - e;
     score *= (score < 0 ? e_factor : 1.0/e_factor);
+#endif
     return score;
 }
 
@@ -370,6 +375,9 @@ bool test_move( char* position, int o, char base )
 }
 
 
+// for testing purposes
+#define USE_DOMAIN_KNOWLEDGE 1
+
 bool play_move( char* position, const char* bases, int z = -1 )
 {
     int l = strspn( position, bases );
@@ -379,6 +387,7 @@ bool play_move( char* position, const char* bases, int z = -1 )
         if( z < 0 ) { // and we're instructed to choose a random one
             int w[] = { 16, 16, 9, 9, 2, 2 };
 
+#if USE_DOMAIN_KNOWLEDGE
             // Tuning of weights for adjacent stacks in junctions.
             // When looking at adjcent stacks in junctions from the point of view of an
             // observer at the center of the loop, it is usually better to make sure that
@@ -417,6 +426,7 @@ bool play_move( char* position, const char* bases, int z = -1 )
                 && pair_map( position[j-1], position[pt[j]-1] ) != 3 ) {
                 w[0] = 0; w[1] = 0;
             }
+#endif
 
             if( !test_move( position, l, 'C' ) ) w[0] = 0;
             if( !test_move( position, l, 'G' ) ) { w[1] = 0; w[5] = 0; }
@@ -493,6 +503,7 @@ bool play_move( char* position, const char* bases, int z = -1 )
                 // FIXME: these "tricks" below should be learned by some ML algorithm
                 //
                 if( internal_loop && down-d == close ) { // unbranched & single segment = hairpin
+#if USE_DOMAIN_KNOWLEDGE
                     // A test for a potential 'slide' from a triloop to a GAAA tetraloop
                     // If matched, have a good chance to apply the "anti-boost" (U/C in the middle
                     // of the triloop)
@@ -515,6 +526,7 @@ bool play_move( char* position, const char* bases, int z = -1 )
                             position[mt[1+l]-1] = 'A';
                         }
                     }
+#endif
                 } else if( internal_loop ) {
                     if( mt[l+1] > l+1 ) {
                         w[0]=5; w[1]=1; w[2]=20; w[3]=1;
@@ -522,6 +534,7 @@ bool play_move( char* position, const char* bases, int z = -1 )
                         w[0]=21; w[1]=1; w[2]=4; w[3]=1;
                     }
                     if( undecided(position[mt[1+l]-1]) ) {
+#if USE_DOMAIN_KNOWLEDGE
                         // 1-1 internal loop
                         if( u == 1 && d == 1 ) {
                             dice = int_urn(0, 9);
@@ -564,6 +577,7 @@ bool play_move( char* position, const char* bases, int z = -1 )
                                 position[mt[1+l]-1] = 'U';
                             }
                         }
+#endif
                     } else {
                         switch( position[mt[1+l]-1] ) {
                         case 'A': w[0]=4; w[1]=0; w[2]=4; w[3]=1; break;
@@ -574,6 +588,7 @@ bool play_move( char* position, const char* bases, int z = -1 )
                     }
                 } else { // a mismatch in a junction or external loop
                     w[0]=97; w[1]=1; w[2]=1; w[3]=1;
+#if USE_DOMAIN_KNOWLEDGE
                     if( down == 1+l ) {
                         if( (l < 1 || pt[1+l-1]==0) && position[l+1] == 'G' && position[pt[1+l+1]-1] == 'C' ) {
                             w[3]=48; // increase chance of C boost
@@ -583,6 +598,7 @@ bool play_move( char* position, const char* bases, int z = -1 )
                             w[2]=48; // increase chance of G boost
                         }
                     }
+#endif
                 }
             }
         }
