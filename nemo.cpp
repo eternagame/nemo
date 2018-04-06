@@ -38,6 +38,12 @@ extern "C" {
 #include "MEA.h"
 }
 
+// set to 0 to prevent use of free energy differences in the scoring function
+#define USE_DDG 1
+
+// set to 0 to disable heuristics in the sampling phase
+#define USE_DOMAIN_KNOWLEDGE 1
+
 // A few globals
 // FIXME: globals are ugly, refactor whenever possible
 //
@@ -307,7 +313,6 @@ double quick_score( char* position )
     return score;
 }
 
-#define USE_DDG 1
     
 double normal_score( char* position )
 {
@@ -374,9 +379,6 @@ bool test_move( char* position, int o, char base )
     return ok;
 }
 
-
-// for testing purposes
-#define USE_DOMAIN_KNOWLEDGE 1
 
 bool play_move( char* position, const char* bases, int z = -1 )
 {
