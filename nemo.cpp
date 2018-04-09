@@ -38,6 +38,9 @@ extern "C" {
 #include "MEA.h"
 }
 
+// set to 0 to prevent use of base pair distances in the scoring function
+#define USE_BPD 1
+
 // set to 0 to prevent use of free energy differences in the scoring function
 #define USE_DDG 1
 
@@ -329,10 +332,17 @@ double normal_score( char* position )
         if( verbosity > 1 ) printf( "Found match:\n%s\n", position );
         return 1.0;
     }
-    double score = (npairs==0 ? 1.0 / (1.0 + bpd) : 1.0 - (0.5 * bpd) / npairs);
+    double score;
+#if USE_BPD
+    score = (npairs==0 ? 1.0 / (1.0 + bpd) : 1.0 - (0.5 * bpd) / npairs);
+#endif
 #if USE_DDG
     double e_factor = 1.01 + es - e;
+#if USE_BPD
     score *= (score < 0 ? e_factor : 1.0/e_factor);
+#else
+    score = 1.0/e_factor;
+#endif
 #endif
     return score;
 }
