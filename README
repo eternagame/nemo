@@ -1,11 +1,11 @@
 Create a 'nemo' folder inside a ViennaRNA 2.1.x source code tree
 
-~/ViennaRNA-2.1.8$ mkdir nemo
+~/ViennaRNA-2.1.9$ mkdir nemo
 
 copy the 3 files into that folder, then compile with
 
 $ gcc -g -O2 -fopenmp -I../H -MD -MP -c -o nemo.o nemo.cpp
-$ gcc -g -O2 -fopenmp -L../lib -o nemo nemo.o -lm -lstdc++ -lRNA -ldl
+$ gcc -g -O2 -fopenmp -L../lib -o nemo nemo.o -lstdc++ -lRNA -lm -ldl
 
 Run with
 
